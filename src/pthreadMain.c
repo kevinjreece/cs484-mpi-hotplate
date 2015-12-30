@@ -123,12 +123,11 @@ void prepNextIteration() {
 	_iterations++;
 	_is_steady = isPlateSteady();
 	if (!_is_steady) swapPlates();
-	fprintf(fp, "%d,\n", getNumOverInPlate(THRESHOLD));
 }
 
 void* createSteadyStateSection(void* arg) {
 	int tid = (int)(uintptr_t)arg;
-	printf("createSteadyStateSection in thread %d\n", tid);
+	// printf("createSteadyStateSection in thread %d\n", tid);
 
 	while (!_is_steady && _iterations < 500) {
 		advanceSection(tid);
@@ -140,6 +139,7 @@ void* createSteadyStateSection(void* arg) {
 		pthread_barrier_wait(&_barr);
 	}
 	
+
 	return 0;
 }
 
@@ -155,8 +155,8 @@ void createSteadyState() {
 	}
 
 	if (_iterations % 2 == 1) swapPlates();
-	printf("Steps: %d\n", _iterations);
-	printf("Over threshold: %d\n", getNumOverInPlate(THRESHOLD));
+	printf("%d, ", _iterations);
+	// printf("Over threshold: %d\n", getNumOverInPlate(THRESHOLD));
 }
 
 void printToFile(char* filename) {
@@ -187,8 +187,6 @@ void cleanUpMemory() {
 	free(_above_threshold);
 
 	pthread_barrier_destroy(&_barr);
-
-	fclose(fp);
 }
 
 void setUp() {
@@ -205,7 +203,6 @@ void setUp() {
 
 	pthread_barrier_init(&_barr, _attr, _nthreads);
 
-	fp = fopen("aboveThreshold.csv", "w");
 }
 
 int main(int argc, char* argv[]) {
@@ -221,7 +218,7 @@ int main(int argc, char* argv[]) {
 	cleanUpMemory();
 
 	double time_e = getTime();
-	printf("Time: %lf seconds\n", time_e - time_b);
+	printf("%lf, ", time_e - time_b);
 	return 0;
 }
 

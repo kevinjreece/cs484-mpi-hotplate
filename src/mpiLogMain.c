@@ -8,7 +8,61 @@
 #define LENGTH     16384
 #define EPSILON  0.1
 
+MPI_Status status;
+
 double When();
+
+bool reduceBool(int ndims, int id, bool value)
+{
+    int not_participating = 0;
+    int bit_mask = 1;
+    bool final_value = value;
+    bool new_value;
+    int cur_dim;
+
+    for(cur_dim = 0; cur_dim < ndims; cur_dim++) {
+        if ((id & not_participating) == 0) {
+            if ((id & bit_mask) != 0) {
+                int dest_id = id ^ bit_mask;
+                MPI_Send(&final_value, 1, MPI_CHAR, dest_id, 0, MPI_COMM_WORLD);// Send
+            } else {
+                int src_id = id ^ bit_mask;
+                MPI_Recv(&new_value, 1, MPI_CHAR, src_id, 0, MPI_COMM_WORLD, &status);// Receive
+                // printf("REDUCE: MPI task %d got %f from %d\n", id, new_value, src_id);
+                final_value &= new_value;
+            }
+        }
+        not_participating = not_participating ^ bit_mask;
+        bit_mask <<=1;
+    }
+    return final_value;
+}
+
+bool broadcastBool(int ndims, int id, bool value) {
+    int not_participating = (int)pow(2.0, ndims-1) - 1;
+    int bit_mask = (int)pow(2.0, ndims - 1);
+    bool new_value = value;
+    int cur_dim;
+
+    // printf("ndims: %d\n", ndims);
+
+    for (cur_dim = 0; cur_dim < ndims; cur_dim++) {
+        if ((id & not_participating) == 0) {
+            if ((id & bit_mask) == 0) {
+                int dest_id = id ^ bit_mask;
+                MPI_Send(&new_value, 1, MPI_CHAR, dest_id, 0, MPI_COMM_WORLD);// Send
+            }
+            else {
+                int src_id = id ^ bit_mask;
+                MPI_Recv(&new_value, 1, MPI_CHAR, src_id, 0, MPI_COMM_WORLD, &status);// Receive
+            }
+        }
+        not_participating >>= 1;
+        bit_mask >>= 1;
+    }
+
+    return new_value;
+}
 
 void printPlate(float** plate, int cnt, int section_len, int iproc) {
     for (int i = 1; i < section_len + 1; i++) {
@@ -42,7 +96,8 @@ bool isCellSteady(float** plate, int row, int col) {
 void main(int argc, char *argv[])
 {
     float **curr_plate, **prev_plate, **tmp;
-    int i, j, done, reallydone;
+    int i, j;
+    bool done, reallydone;
     int cnt = 0;
     int start, end;
     int section_len;
@@ -50,13 +105,13 @@ void main(int argc, char *argv[])
     double starttime;
 
     int nproc, iproc;
-    MPI_Status status;
 
     MPI_Init(&argc, &argv);
     starttime = When();
 
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &iproc);
+    int ndims = (int)log2(nproc);
     // fprintf(stderr,"%d: Hello from %d of %d\n", iproc, iproc, nproc);
     
     /* Determine how much I should be doing and allocate the arrays*/
@@ -99,7 +154,7 @@ void main(int argc, char *argv[])
     }
 
     /* Now run the relaxation */
-    reallydone = 0;
+    reallydone = false;
     for(cnt = 0; !reallydone; cnt++)
     {
         // if (iproc == 0) { printf("cnt = %d\n", cnt); }
@@ -146,7 +201,8 @@ void main(int argc, char *argv[])
         }
 
         /* Do a reduce to see if everybody is done */
-        MPI_Allreduce(&done, &reallydone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+        reallydone = reduceBool(ndims, iproc, done);
+        reallydone = broadcastBool(ndims, iproc, reallydone);
 
         /* Swap the pointers */
         tmp = curr_plate;

@@ -85,8 +85,8 @@ void createSteadyState() {
 		swapPlates();
 	}
 	if (steps % 2 == 1) swapPlates();
-	printf("Steps: %d\n", steps);
-	printf("Over threshold: %d\n", getNumOver());
+	printf("%d, ", steps);
+	// printf("Over threshold: %d\n", getNumOver());
 }
 
 void printToFile(char* filename) {
@@ -125,6 +125,6 @@ int main(int argc, char* argv[]) {
 	// printToFile("c.csv");
 
 	double time_e = getTime();
-	printf("Time: %lf seconds\n", time_e - time_b);
+	printf("%lf, ", time_e - time_b);
 	return 0;
 }

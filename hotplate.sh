@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=00:30:00   # walltime
+#SBATCH --time=01:00:00   # walltime
 #SBATCH --ntasks=16 	# number of processor cores
 #SBATCH --nodes=1   # number of nodes
 #SBATCH --mem-per-cpu=1024M   # memory per CPU core
@@ -16,15 +16,18 @@ export PBS_QUEUE=batch
 make clean
 make all
 
-for i in 1 2 4 8 16; do
+for i in 16 8 4 2 1; do
         echo "-----------------------"
         echo $i threads
         echo "-----------------------"
-        # echo "OMP"
-        # ./bin/ompMain.o $i
-        # echo "PTHREAD"
-        # ./bin/pthreadMain.o $i
-        echo "MPI"
-        mpirun -np $i ./bin/mpiMain.o
+        export OMP_NUM_THREADS=$i
+        echo -n "OMP, "
+        ./bin/ompMain.o
+        echo -n "Pthread, "
+        ./bin/pthreadMain.o $i
+        echo -n "MPI Lin, "
+        mpirun -np $i ./bin/mpiLinMain.o
+        echo -n "MPI Log, "
+        mpirun -np $i ./bin/mpiLogMain.o
         echo ""
 done
